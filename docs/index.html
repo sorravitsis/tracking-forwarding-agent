@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tracking Forwarding Agent</title>
+  <style>
+    :root {
+      --primary-color: #d32f2f;
+      --secondary-color: #ff6f61;
+      --background-color: #ffeaea;
+      --text-color: #333;
+      --white: #ffffff;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Arial', sans-serif;
+      background-color: var(--background-color);
+      color: var(--text-color);
+      line-height: 1.6;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .tracking-container {
+      background-color: var(--white);
+      border-radius: 12px;
+      box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2);
+      width: 100%;
+      max-width: 500px;
+      padding: 30px;
+      text-align: center;
+    }
+
+    .tracking-container img {
+      max-width: 150px;
+      height: auto;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      color: var(--primary-color);
+      margin-bottom: 25px;
+      font-size: 24px;
+    }
+
+    .tracking-form {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    select,
+    input,
+    button {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 16px;
+    }
+
+    button {
+      background-color: var(--primary-color);
+      color: var(--white);
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background-color: #b71c1c;
+    }
+
+    .tracking-links {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      margin-top: 25px;
+      gap: 10px;
+    }
+
+    .tracking-links a {
+      text-decoration: none;
+      color: var(--primary-color);
+      padding: 10px;
+      border: 1px solid var(--primary-color);
+      border-radius: 6px;
+      font-size: 13px;
+      transition: 0.3s;
+    }
+
+    .tracking-links a:hover {
+      background-color: var(--primary-color);
+      color: var(--white);
+    }
+
+    .additional-info {
+      margin-top: 20px;
+      font-size: 12px;
+      color: #666;
+    }
+
+    /* ===== Modal Overlay ===== */
+    #result-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background: rgba(0, 0, 0, 0.6);
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    #result-modal .modal-box {
+      max-width: 750px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    #result-modal .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 20px;
+      background: var(--primary-color);
+      color: #fff;
+    }
+
+    #result-modal .modal-header span {
+      font-weight: bold;
+      font-size: 16px;
+    }
+
+    #result-modal .modal-close {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 22px;
+      cursor: pointer;
+      width: auto;
+      padding: 0 4px;
+    }
+
+    #result-content {
+      padding: 20px;
+    }
+
+    .loading-spinner {
+      text-align: center;
+      padding: 40px 0;
+      color: #888;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="tracking-container">
+    <img src="https://img2.pic.in.th/pic/sisfae452b686346315.png" alt="Tracking Logo">
+    <h1>Tracking Forwarding Agent</h1>
+
+    <div class="tracking-form">
+      <select id="carrier">
+        <option value="">Select Carrier</option>
+        <option value="dhl">DHL</option>
+        <option value="scg">SCG</option>
+        <option value="porlor">Porlor</option>
+        <option value="skyfrog">Skyfrog</option>
+      </select>
+
+      <input type="text" id="tracking-number" placeholder="Enter DO Number">
+      <button onclick="trackPackage()">Track Now</button>
+    </div>
+
+    <div class="tracking-links">
+      <a href="https://ecommerceportal.dhl.com/track/" target="_blank" onclick="return openCarrierLink('dhl')">DHL</a>
+      <a href="https://www.scgjwd.com/tracking" target="_blank" onclick="return openCarrierLink('scg')">SCG</a>
+      <a href="https://rfe.co.th/hc_rfeweb/trackingweb" target="_blank"
+        onclick="return openCarrierLink('porlor')">Porlor</a>
+      <a href="https://track.skyfrog.net/h1IZM" target="_blank" onclick="return openCarrierLink('skyfrog')">Skyfrog</a>
+    </div>
+
+    <div class="additional-info">
+      *Click carrier name above for direct access. If DO number is filled, it will search automatically.
+    </div>
+  </div>
+
+  <!-- ===== Result Modal ===== -->
+  <div id="result-modal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span id="modal-title">Search Result</span>
+        <button class="modal-close" onclick="closeModal()">&#10005;</button>
+      </div>
+      <div id="result-content"></div>
+    </div>
+  </div>
+
+  <script>
+    // ===== GAS API URL (Porlor proxy backend) =====
+    var GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzl6C2JSY9_HfBzZLLOsarLtaYWRh71iKuYwBZ1mA95JdXuKR5d05KkkBtmEk0kKtc/exec';
+
+    // ===== Modal helpers =====
+    function showModal(title, html) {
+      document.getElementById('modal-title').textContent = title;
+      document.getElementById('result-content').innerHTML = html;
+      document.getElementById('result-modal').style.display = 'block';
+    }
+    function showLoading(title, num) {
+      showModal(title, '<div class="loading-spinner"><p>Searching <strong>'
+        + num + '</strong> ...</p><p>Please wait...</p></div>');
+    }
+    function showErrorModal(title, msg, fallbackUrl) {
+      showModal(title, '<div style="text-align:center;padding:30px 0;">'
+        + '<p style="color:red;font-size:16px;">' + msg + '</p>'
+        + (fallbackUrl ? '<p style="margin-top:15px;"><a href="' + fallbackUrl
+          + '" target="_blank" style="color:#d32f2f;">Try searching on the website directly</a></p>' : '')
+        + '</div>');
+    }
+    function closeModal() {
+      document.getElementById('result-modal').style.display = 'none';
+      document.getElementById('result-content').innerHTML = '';
+    }
+
+    // ===== Click "Track Now" button =====
+    function trackPackage() {
+      var carrier = document.getElementById('carrier').value;
+      var num = document.getElementById('tracking-number').value.trim();
+      if (!num) { alert('Please enter DO number'); return; }
+      if (!carrier) { alert('Please select a carrier'); return; }
+      openTracking(carrier, num);
+    }
+
+    // ===== Quick link click =====
+    function openCarrierLink(carrier) {
+      var num = document.getElementById('tracking-number').value.trim();
+      if (num) { openTracking(carrier, num); return false; }
+      return true;
+    }
+
+    // ===== Open tracking per carrier =====
+    function openTracking(carrier, num) {
+      switch (carrier) {
+        case 'dhl':
+          window.open('https://ecommerceportal.dhl.com/track/?ref=' + encodeURIComponent(num), '_blank');
+          break;
+        case 'scg':
+          // Copy DO number then open SCG website — user pastes with Ctrl+V
+          var tempInput = document.createElement('textarea');
+          tempInput.value = num;
+          document.body.appendChild(tempInput);
+          tempInput.select();
+          document.execCommand('copy');
+          document.body.removeChild(tempInput);
+          showModal('SCG Tracking', '<div style="text-align:center;padding:25px 15px;">'
+            + '<p style="font-size:16px;">DO Number <strong style="color:#d32f2f;font-size:20px;">' + num + '</strong></p>'
+            + '<p style="font-size:15px;color:#4caf50;margin:10px 0;">&#10004; DO number copied!</p>'
+            + '<p style="color:#666;font-size:13px;">Please paste in the search box (<b>Ctrl+V</b>) then click <b>SEARCH</b></p>'
+            + '</div>');
+          window.open('https://www.scgjwd.com/tracking', '_blank');
+          break;
+        case 'skyfrog':
+          window.open('https://track.skyfrog.net/h1IZM?TrackNo=' + encodeURIComponent(num), '_blank');
+          break;
+        case 'porlor':
+          openPorlorTracking(num);
+          break;
+      }
+    }
+
+    // ===== Porlor — fetch via GAS API, display in modal =====
+    function openPorlorTracking(num) {
+      showLoading('Porlor Tracking', num);
+
+      var controller = new AbortController();
+      var timer = setTimeout(function () {
+        controller.abort();
+        showErrorModal('Porlor Tracking', 'Connection timed out — please try again', 'https://rfe.co.th/hc_rfeweb/trackingweb');
+      }, 45000);
+
+      fetch(GAS_API_URL + '?action=porlor&tracking=' + encodeURIComponent(num), {
+        redirect: 'follow',
+        signal: controller.signal
+      })
+        .then(function (r) { return r.text(); })
+        .then(function (text) {
+          clearTimeout(timer);
+          try {
+            var result = JSON.parse(text);
+            if (result && result.success) {
+              showModal('Porlor Tracking', result.html);
+            } else {
+              showErrorModal('Porlor Tracking', (result && result.error) || 'Unknown error', 'https://rfe.co.th/hc_rfeweb/trackingweb');
+            }
+          } catch (e) {
+            showErrorModal('Porlor Tracking', 'Invalid response from server', 'https://rfe.co.th/hc_rfeweb/trackingweb');
+          }
+        })
+        .catch(function (err) {
+          clearTimeout(timer);
+          if (err.name === 'AbortError') return; // timeout already handled
+          showErrorModal('Porlor Tracking', 'Connection failed: ' + err.message, 'https://rfe.co.th/hc_rfeweb/trackingweb');
+        });
+    }
+  </script>
+
+</body>
+
+</html>
