@@ -164,12 +164,13 @@ function getScgTracking(trackingNumber) {
         const res = UrlFetchApp.fetch('https://www.scgjwd.com/nx/API/get_tracking', {
             method: 'post',
             contentType: 'application/x-www-form-urlencoded',
-            payload: {
-                'number': cleanNumber,
-                'token': SCG_TOKEN
-            },
+            payload: 'number=' + encodeURIComponent(cleanNumber) + '&token=' + SCG_TOKEN,
             headers: {
-                'Referer': 'https://www.scgjwd.com/tracking'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                'Origin': 'https://www.scgjwd.com',
+                'Referer': 'https://www.scgjwd.com/tracking',
+                'Accept': 'application/json, text/plain, */*',
+                'X-Requested-With': 'XMLHttpRequest'
             },
             muteHttpExceptions: true,
             followRedirects: true

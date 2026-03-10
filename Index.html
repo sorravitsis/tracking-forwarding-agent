@@ -370,7 +370,7 @@
         name: 'SCG',
         trackUrl: null,
         siteUrl: 'https://www.scgjwd.com/tracking',
-        mode: 'proxy'  // fetch via server-side GAS proxy
+        mode: 'autocopy'  // SCG uses Cloudflare; can't proxy → auto-copy + open site
       },
       porlor: {
         name: 'Porlor',
@@ -565,9 +565,20 @@
           break;
         }
 
+        case 'autocopy': {
+          copyToClipboard(num).then(ok => {
+            if (ok) {
+              showToast('📋 คัดลอกเลข DO แล้ว — วาง Ctrl+V ในช่องค้นหา ' + config.name, 4000);
+            } else {
+              showToast('⚠️ ไม่สามารถคัดลอกได้ กรุณาพิมพ์เลข: ' + num, 5000);
+            }
+            window.open(config.siteUrl, '_blank');
+          });
+          break;
+        }
+
         case 'proxy': {
-          if (carrier === 'porlor') openPorlorTracking(num);
-          else if (carrier === 'scg') openScgTracking(num);
+          openPorlorTracking(num);
           break;
         }
       }
