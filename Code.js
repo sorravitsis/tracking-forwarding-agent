@@ -12,6 +12,13 @@ function doGet(e) {
             .setMimeType(ContentService.MimeType.JSON);
     }
 
+    if (e && e.parameter && e.parameter.action === 'scg') {
+        const trackingNum = e.parameter.tracking || '';
+        const result = getScgTracking(trackingNum);
+        return ContentService.createTextOutput(JSON.stringify(result))
+            .setMimeType(ContentService.MimeType.JSON);
+    }
+
     // ===== Default: serve HTML page (GAS Web App mode) =====
     return HtmlService.createHtmlOutputFromFile('Index')
         .setTitle('Tracking Forwarding Agent')
@@ -137,4 +144,184 @@ function getPorlorTracking(trackingNumber) {
     } catch (e) {
         return { success: false, error: 'เกิดข้อผิดพลาด กรุณาลองใหม่' };
     }
+}
+
+/**
+ * ดึงข้อมูล tracking จาก SCG (JWD) ผ่าน server-side
+ * ใช้ SCG internal API: POST /nx/API/get_tracking
+ */
+function getScgTracking(trackingNumber) {
+    try {
+        // Input validation
+        const validation = validateTrackingNumber(trackingNumber);
+        if (!validation.valid) {
+            return { success: false, error: validation.error };
+        }
+
+        const cleanNumber = trackingNumber.trim();
+        const SCG_TOKEN = 'd25506a134038d76baf6aacb693d899b';
+
+        const res = UrlFetchApp.fetch('https://www.scgjwd.com/nx/API/get_tracking', {
+            method: 'post',
+            contentType: 'application/x-www-form-urlencoded',
+            payload: {
+                'number': cleanNumber,
+                'token': SCG_TOKEN
+            },
+            headers: {
+                'Referer': 'https://www.scgjwd.com/tracking'
+            },
+            muteHttpExceptions: true,
+            followRedirects: true
+        });
+
+        const code = res.getResponseCode();
+        const body = res.getContentText();
+
+        if (code !== 200 || !body) {
+            return { success: false, error: 'SCG response code: ' + code };
+        }
+
+        // Parse JSON response
+        let data;
+        try {
+            data = JSON.parse(body);
+        } catch (e) {
+            return { success: false, error: 'ไม่สามารถอ่านข้อมูลจาก SCG ได้' };
+        }
+
+        // Check if data has results
+        if (!data || (Array.isArray(data) && data.length === 0)) {
+            return { success: false, error: 'ไม่พบข้อมูลสำหรับหมายเลข: ' + cleanNumber };
+        }
+
+        if (data.error || data.status === 'error') {
+            return { success: false, error: data.error || data.message || 'SCG API error' };
+        }
+
+        // Build clean HTML table from JSON response
+        const html = buildScgHtml(data, cleanNumber);
+        return { success: true, html: html };
+
+    } catch (e) {
+        return { success: false, error: 'เกิดข้อผิดพลาดในการเชื่อมต่อ SCG กรุณาลองใหม่' };
+    }
+}
+
+/**
+ * สร้าง HTML table จาก SCG tracking JSON response
+ */
+function buildScgHtml(data, trackingNumber) {
+    let html = '<style>'
+        + 'table{width:100%;border-collapse:collapse;font-size:14px;}'
+        + 'th{background:#d32f2f;color:#fff;padding:10px 8px;text-align:left;}'
+        + 'td{border:1px solid #ddd;padding:8px;text-align:left;}'
+        + 'tr:nth-child(even){background:#f9f9f9;}'
+        + '.scg-header{text-align:center;padding:15px 0;}'
+        + '.scg-header h3{color:#d32f2f;margin-bottom:5px;}'
+        + '.scg-status{display:inline-block;padding:4px 12px;border-radius:12px;font-size:13px;font-weight:600;}'
+        + '.status-delivered{background:#e8f5e9;color:#2e7d32;}'
+        + '.status-transit{background:#fff3e0;color:#e65100;}'
+        + '.status-other{background:#e3f2fd;color:#1565c0;}'
+        + '</style>';
+
+    html += '<div class="scg-header">'
+        + '<h3>SCG Tracking</h3>'
+        + '<p>หมายเลข: <strong>' + escapeHtmlServer(trackingNumber) + '</strong></p>'
+        + '</div>';
+
+    // Handle different response structures
+    if (typeof data === 'object' && !Array.isArray(data)) {
+        // Single object response — render key-value pairs
+        if (data.data && Array.isArray(data.data)) {
+            html += renderScgTableArray(data.data);
+        } else if (data.result && Array.isArray(data.result)) {
+            html += renderScgTableArray(data.result);
+        } else if (data.tracking && Array.isArray(data.tracking)) {
+            html += renderScgTableArray(data.tracking);
+        } else {
+            // Generic object — render all fields
+            html += renderScgObject(data);
+        }
+    } else if (Array.isArray(data)) {
+        html += renderScgTableArray(data);
+    } else {
+        html += '<p style="text-align:center;padding:20px;">ได้รับข้อมูลแล้ว แต่ไม่สามารถแสดงผลได้</p>';
+    }
+
+    return html;
+}
+
+/**
+ * Render array of tracking events as HTML table
+ */
+function renderScgTableArray(arr) {
+    if (!arr || arr.length === 0) return '<p style="text-align:center;padding:20px;">ไม่พบรายละเอียด</p>';
+
+    // Get all unique keys from all objects
+    const keys = [];
+    arr.forEach(function (item) {
+        if (typeof item === 'object' && item !== null) {
+            Object.keys(item).forEach(function (k) {
+                if (keys.indexOf(k) === -1) keys.push(k);
+            });
+        }
+    });
+
+    if (keys.length === 0) return '<p style="text-align:center;padding:20px;">ไม่พบรายละเอียด</p>';
+
+    let html = '<table><thead><tr>';
+    keys.forEach(function (k) {
+        html += '<th>' + escapeHtmlServer(k) + '</th>';
+    });
+    html += '</tr></thead><tbody>';
+
+    arr.forEach(function (item) {
+        html += '<tr>';
+        keys.forEach(function (k) {
+            const val = item[k] !== undefined && item[k] !== null ? String(item[k]) : '-';
+            html += '<td>' + escapeHtmlServer(val) + '</td>';
+        });
+        html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    return html;
+}
+
+/**
+ * Render a single object as key-value table
+ */
+function renderScgObject(obj) {
+    let html = '<table>';
+    Object.keys(obj).forEach(function (key) {
+        const val = obj[key];
+        if (typeof val === 'object' && val !== null) {
+            if (Array.isArray(val) && val.length > 0) {
+                html += '<tr><td colspan="2"><strong>' + escapeHtmlServer(key) + '</strong></td></tr>';
+                html += '<tr><td colspan="2">' + renderScgTableArray(val) + '</td></tr>';
+            }
+        } else {
+            html += '<tr><td><strong>'
+                + escapeHtmlServer(key)
+                + '</strong></td><td>'
+                + escapeHtmlServer(val !== undefined && val !== null ? String(val) : '-')
+                + '</td></tr>';
+        }
+    });
+    html += '</table>';
+    return html;
+}
+
+/**
+ * Server-side HTML escaping
+ */
+function escapeHtmlServer(str) {
+    if (typeof str !== 'string') str = String(str);
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }

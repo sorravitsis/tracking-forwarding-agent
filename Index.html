@@ -370,7 +370,7 @@
         name: 'SCG',
         trackUrl: null,
         siteUrl: 'https://www.scgjwd.com/tracking',
-        mode: 'copy'  // copy number to clipboard, then open site
+        mode: 'proxy'  // fetch via server-side GAS proxy
       },
       porlor: {
         name: 'Porlor',
@@ -565,39 +565,26 @@
           break;
         }
 
-        case 'copy': {
-          copyToClipboard(num).then(ok => {
-            const safeNum = escapeHtml(num);
-            showModal(config.name + ' Tracking',
-              '<div style="text-align:center;padding:25px 15px;">'
-              + '<p style="font-size:16px;">หมายเลข <strong style="color:#d32f2f;font-size:20px;">' + safeNum + '</strong></p>'
-              + (ok
-                ? '<p style="font-size:15px;color:#4caf50;margin:10px 0;">&#10004; คัดลอกเลข DO แล้ว</p>'
-                : '<p style="font-size:15px;color:#d32f2f;margin:10px 0;">&#10008; ไม่สามารถคัดลอกได้ กรุณาคัดลอกเอง: <strong>' + safeNum + '</strong></p>')
-              + '<p style="color:#666;font-size:13px;">กรุณาวางในช่องค้นหา (<b>Ctrl+V</b>) แล้วกด <b>SEARCH</b></p>'
-              + '</div>');
-            window.open(config.siteUrl, '_blank');
-          });
-          break;
-        }
-
         case 'proxy': {
-          openPorlorTracking(num);
+          if (carrier === 'porlor') openPorlorTracking(num);
+          else if (carrier === 'scg') openScgTracking(num);
           break;
         }
       }
     }
 
-    // ===== Porlor — ค้นหาผ่าน server-side แสดงผลใน modal =====
-    function openPorlorTracking(num) {
+    // ===== Generic GAS proxy handler =====
+    function openGasProxy(carrierKey, num, gasFunction) {
       let done = false;
-      showLoading('Porlor Tracking', num);
+      const config = CARRIERS[carrierKey];
+      const title = config.name + ' Tracking';
+      showLoading(title, num);
 
       const timer = setTimeout(() => {
         if (!done) {
           done = true;
-          showErrorModal('Porlor Tracking', 'หมดเวลาเชื่อมต่อ Porlor — กรุณาลองใหม่',
-            CARRIERS.porlor.siteUrl);
+          showErrorModal(title, 'หมดเวลาเชื่อมต่อ ' + config.name + ' — กรุณาลองใหม่',
+            config.siteUrl);
         }
       }, 45000);
 
@@ -607,22 +594,32 @@
           done = true;
           clearTimeout(timer);
           if (result && result.success) {
-            showModal('Porlor Tracking', result.html);
+            showModal(title, result.html);
           } else {
-            showErrorModal('Porlor Tracking',
+            showErrorModal(title,
               (result && result.error) || 'Unknown error',
-              CARRIERS.porlor.siteUrl);
+              config.siteUrl);
           }
         })
         .withFailureHandler((err) => {
           if (done) return;
           done = true;
           clearTimeout(timer);
-          showErrorModal('Porlor Tracking',
+          showErrorModal(title,
             (err && err.message) ? err.message : String(err),
-            CARRIERS.porlor.siteUrl);
+            config.siteUrl);
         })
-        .getPorlorTracking(num);
+      [gasFunction](num);
+    }
+
+    // ===== Porlor — ค้นหาผ่าน server-side แสดงผลใน modal =====
+    function openPorlorTracking(num) {
+      openGasProxy('porlor', num, 'getPorlorTracking');
+    }
+
+    // ===== SCG — ค้นหาผ่าน server-side แสดงผลใน modal =====
+    function openScgTracking(num) {
+      openGasProxy('scg', num, 'getScgTracking');
     }
   </script>
 

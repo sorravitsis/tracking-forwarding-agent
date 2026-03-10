@@ -4,14 +4,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description"
+    content="ระบบติดตามพัสดุ Forwarding Agent — ค้นหาสถานะการจัดส่งจาก DHL, SCG, Porlor, Skyfrog ได้ในที่เดียว">
   <title>Tracking Forwarding Agent</title>
+
+  <!-- DOMPurify for safe HTML rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
+
   <style>
     :root {
-      --primary-color: #d32f2f;
-      --secondary-color: #ff6f61;
-      --background-color: #ffeaea;
-      --text-color: #333;
+      --primary: #d32f2f;
+      --primary-dark: #b71c1c;
+      --secondary: #ff6f61;
+      --bg: #ffeaea;
+      --text: #333;
       --white: #ffffff;
+      --gray: #666;
+      --border: #ddd;
+      --success: #4caf50;
+      --radius: 8px;
+      --shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
     }
 
     * {
@@ -21,9 +33,9 @@
     }
 
     body {
-      font-family: 'Arial', sans-serif;
-      background-color: var(--background-color);
-      color: var(--text-color);
+      font-family: 'Segoe UI', 'Arial', sans-serif;
+      background: linear-gradient(135deg, var(--bg) 0%, #ffd6d6 100%);
+      color: var(--text);
       line-height: 1.6;
       display: flex;
       justify-content: center;
@@ -32,83 +44,171 @@
       padding: 20px;
     }
 
+    /* ===== Main Container ===== */
     .tracking-container {
-      background-color: var(--white);
-      border-radius: 12px;
-      box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2);
+      background: var(--white);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
       width: 100%;
       max-width: 500px;
-      padding: 30px;
+      padding: 32px;
       text-align: center;
+      animation: fadeIn 0.4s ease;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .tracking-container img {
-      max-width: 150px;
+      max-width: 140px;
       height: auto;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
     }
 
     h1 {
-      color: var(--primary-color);
-      margin-bottom: 25px;
-      font-size: 24px;
+      color: var(--primary);
+      margin-bottom: 24px;
+      font-size: 22px;
+      font-weight: 700;
     }
 
+    /* ===== Form ===== */
     .tracking-form {
       display: flex;
       flex-direction: column;
-      gap: 15px;
+      gap: 14px;
+    }
+
+    .form-group {
+      text-align: left;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--gray);
+      margin-bottom: 5px;
     }
 
     select,
-    input,
-    button {
+    input[type="text"] {
       width: 100%;
-      padding: 12px;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      font-size: 16px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 15px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      background: var(--white);
     }
 
-    button {
-      background-color: var(--primary-color);
-      color: var(--white);
+    select:focus,
+    input[type="text"]:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.12);
+    }
+
+    .input-error {
+      border-color: var(--primary) !important;
+    }
+
+    .error-text {
+      color: var(--primary);
+      font-size: 12px;
+      margin-top: 4px;
+      display: none;
+    }
+
+    button[type="button"],
+    .btn-track {
+      width: 100%;
+      padding: 13px;
       border: none;
-      cursor: pointer;
+      border-radius: var(--radius);
+      font-size: 15px;
       font-weight: 600;
-      transition: 0.3s;
+      cursor: pointer;
+      transition: background-color 0.25s, transform 0.1s;
+      background: var(--primary);
+      color: var(--white);
     }
 
-    button:hover {
-      background-color: #b71c1c;
+    button[type="button"]:hover,
+    .btn-track:hover {
+      background: var(--primary-dark);
     }
 
+    button[type="button"]:active,
+    .btn-track:active {
+      transform: scale(0.98);
+    }
+
+    /* ===== Quick Links ===== */
     .tracking-links {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      margin-top: 25px;
+      margin-top: 24px;
       gap: 10px;
     }
 
     .tracking-links a {
       text-decoration: none;
-      color: var(--primary-color);
+      color: var(--primary);
       padding: 10px;
-      border: 1px solid var(--primary-color);
-      border-radius: 6px;
+      border: 1.5px solid var(--primary);
+      border-radius: var(--radius);
       font-size: 13px;
-      transition: 0.3s;
+      font-weight: 600;
+      transition: background-color 0.25s, color 0.25s, transform 0.1s;
     }
 
     .tracking-links a:hover {
-      background-color: var(--primary-color);
+      background: var(--primary);
       color: var(--white);
+      transform: translateY(-1px);
+    }
+
+    .tracking-links a:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
     }
 
     .additional-info {
-      margin-top: 20px;
+      margin-top: 18px;
       font-size: 12px;
-      color: #666;
+      color: var(--gray);
+    }
+
+    /* ===== Toast notification ===== */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #323232;
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      z-index: 2000;
+      opacity: 0;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
     }
 
     /* ===== Modal Overlay ===== */
@@ -117,17 +217,29 @@
       position: fixed;
       inset: 0;
       z-index: 1000;
-      background: rgba(0, 0, 0, 0.6);
+      background: rgba(0, 0, 0, 0.55);
       overflow-y: auto;
       padding: 20px;
+      animation: fadeInModal 0.25s ease;
+    }
+
+    @keyframes fadeInModal {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
     }
 
     #result-modal .modal-box {
       max-width: 750px;
-      margin: 0 auto;
-      background: #fff;
-      border-radius: 10px;
+      margin: 40px auto;
+      background: var(--white);
+      border-radius: 12px;
       overflow: hidden;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
     }
 
     #result-modal .modal-header {
@@ -135,8 +247,8 @@
       justify-content: space-between;
       align-items: center;
       padding: 14px 20px;
-      background: var(--primary-color);
-      color: #fff;
+      background: var(--primary);
+      color: var(--white);
     }
 
     #result-modal .modal-header span {
@@ -147,11 +259,17 @@
     #result-modal .modal-close {
       background: none;
       border: none;
-      color: #fff;
+      color: var(--white);
       font-size: 22px;
       cursor: pointer;
       width: auto;
-      padding: 0 4px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: background-color 0.2s;
+    }
+
+    #result-modal .modal-close:hover {
+      background: rgba(255, 255, 255, 0.2);
     }
 
     #result-content {
@@ -163,29 +281,56 @@
       padding: 40px 0;
       color: #888;
     }
+
+    .loading-spinner::before {
+      content: '';
+      display: block;
+      width: 36px;
+      height: 36px;
+      margin: 0 auto 16px;
+      border: 3px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
   </style>
 </head>
 
 <body>
 
   <div class="tracking-container">
-    <img src="https://img2.pic.in.th/pic/sisfae452b686346315.png" alt="Tracking Logo">
-    <h1>Tracking Forwarding Agent</h1>
+    <img src="https://img2.pic.in.th/pic/sisfae452b686346315.png" alt="Tracking Forwarding Agent Logo">
+    <h1>ติดตาม Order</h1>
 
-    <div class="tracking-form">
-      <select id="carrier">
-        <option value="">Select Carrier</option>
-        <option value="dhl">DHL</option>
-        <option value="scg">SCG</option>
-        <option value="porlor">Porlor</option>
-        <option value="skyfrog">Skyfrog</option>
-      </select>
+    <form class="tracking-form" id="tracking-form" onsubmit="return false;">
+      <div class="form-group">
+        <label for="carrier">บริษัทขนส่ง</label>
+        <select id="carrier" aria-label="เลือกบริษัทขนส่ง">
+          <option value="">-- เลือกบริษัทขนส่ง --</option>
+          <option value="dhl">DHL</option>
+          <option value="scg">SCG</option>
+          <option value="porlor">Porlor</option>
+          <option value="skyfrog">Skyfrog</option>
+        </select>
+      </div>
 
-      <input type="text" id="tracking-number" placeholder="Enter DO Number">
-      <button onclick="trackPackage()">Track Now</button>
-    </div>
+      <div class="form-group">
+        <label for="tracking-number">หมายเลข DO</label>
+        <input type="text" id="tracking-number" placeholder="กรอกหมายเลข DO" aria-label="กรอกหมายเลข DO" maxlength="50"
+          autocomplete="off">
+        <div class="error-text" id="tracking-error"></div>
+      </div>
 
-    <div class="tracking-links">
+      <button type="button" class="btn-track" id="btn-track" onclick="trackPackage()">ติดตามทันที</button>
+    </form>
+
+    <div class="tracking-links" role="navigation" aria-label="Quick carrier links">
       <a href="https://ecommerceportal.dhl.com/track/" target="_blank" onclick="return openCarrierLink('dhl')">DHL</a>
       <a href="https://www.scgjwd.com/tracking" target="_blank" onclick="return openCarrierLink('scg')">SCG</a>
       <a href="https://rfe.co.th/hc_rfeweb/trackingweb" target="_blank"
@@ -194,16 +339,19 @@
     </div>
 
     <div class="additional-info">
-      *Click carrier name above for direct access. If DO number is filled, it will search automatically.
+      *คลิกชื่อขนส่งด้านบนได้โดยตรง ถ้ากรอก DO ไว้จะค้นหาให้เลย
     </div>
   </div>
 
+  <!-- ===== Toast ===== -->
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
   <!-- ===== Result Modal ===== -->
-  <div id="result-modal">
+  <div id="result-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal-box">
       <div class="modal-header">
-        <span id="modal-title">Search Result</span>
-        <button class="modal-close" onclick="closeModal()">&#10005;</button>
+        <span id="modal-title">ผลการค้นหา</span>
+        <button class="modal-close" onclick="closeModal()" aria-label="ปิดหน้าต่าง">&#10005;</button>
       </div>
       <div id="result-content"></div>
     </div>
@@ -211,109 +359,266 @@
 
   <script>
     // ===== GAS API URL (Porlor proxy backend) =====
-    var GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzl6C2JSY9_HfBzZLLOsarLtaYWRh71iKuYwBZ1mA95JdXuKR5d05KkkBtmEk0kKtc/exec';
+    const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzl6C2JSY9_HfBzZLLOsarLtaYWRh71iKuYwBZ1mA95JdXuKR5d05KkkBtmEk0kKtc/exec';
 
-    // ===== Modal helpers =====
-    function showModal(title, html) {
-      document.getElementById('modal-title').textContent = title;
-      document.getElementById('result-content').innerHTML = html;
-      document.getElementById('result-modal').style.display = 'block';
-    }
-    function showLoading(title, num) {
-      showModal(title, '<div class="loading-spinner"><p>Searching <strong>'
-        + num + '</strong> ...</p><p>Please wait...</p></div>');
-    }
-    function showErrorModal(title, msg, fallbackUrl) {
-      showModal(title, '<div style="text-align:center;padding:30px 0;">'
-        + '<p style="color:red;font-size:16px;">' + msg + '</p>'
-        + (fallbackUrl ? '<p style="margin-top:15px;"><a href="' + fallbackUrl
-          + '" target="_blank" style="color:#d32f2f;">Try searching on the website directly</a></p>' : '')
-        + '</div>');
-    }
-    function closeModal() {
-      document.getElementById('result-modal').style.display = 'none';
-      document.getElementById('result-content').innerHTML = '';
+    // ===== Carrier Configuration =====
+    const CARRIERS = {
+      dhl: {
+        name: 'DHL',
+        trackUrl: 'https://ecommerceportal.dhl.com/track/?ref={num}',
+        siteUrl: 'https://ecommerceportal.dhl.com/track/',
+        mode: 'redirect'
+      },
+      scg: {
+        name: 'SCG',
+        trackUrl: null,
+        siteUrl: 'https://www.scgjwd.com/tracking',
+        mode: 'proxy'  // fetch via server-side GAS proxy
+      },
+      porlor: {
+        name: 'Porlor',
+        trackUrl: null,
+        siteUrl: 'https://rfe.co.th/hc_rfeweb/trackingweb',
+        mode: 'proxy'
+      },
+      skyfrog: {
+        name: 'Skyfrog',
+        trackUrl: 'https://track.skyfrog.net/h1IZM?TrackNo={num}',
+        siteUrl: 'https://track.skyfrog.net/h1IZM',
+        mode: 'redirect'
+      }
+    };
+
+    // ===== Input Validation =====
+    const TRACKING_REGEX = /^[a-zA-Z0-9\-_]+$/;
+    const MIN_LENGTH = 3;
+    const MAX_LENGTH = 50;
+
+    function validateInput(num) {
+      if (!num) return 'กรุณากรอกหมายเลข DO';
+      if (num.length < MIN_LENGTH || num.length > MAX_LENGTH)
+        return `หมายเลข DO ต้องมีความยาว ${MIN_LENGTH}-${MAX_LENGTH} ตัวอักษร`;
+      if (!TRACKING_REGEX.test(num))
+        return 'หมายเลข DO ต้องเป็นตัวอักษรภาษาอังกฤษ ตัวเลข หรือเครื่องหมาย - _ เท่านั้น';
+      return '';
     }
 
-    // ===== Click "Track Now" button =====
-    function trackPackage() {
-      var carrier = document.getElementById('carrier').value;
-      var num = document.getElementById('tracking-number').value.trim();
-      if (!num) { alert('Please enter DO number'); return; }
-      if (!carrier) { alert('Please select a carrier'); return; }
-      openTracking(carrier, num);
-    }
-
-    // ===== Quick link click =====
-    function openCarrierLink(carrier) {
-      var num = document.getElementById('tracking-number').value.trim();
-      if (num) { openTracking(carrier, num); return false; }
-      return true;
-    }
-
-    // ===== Open tracking per carrier =====
-    function openTracking(carrier, num) {
-      switch (carrier) {
-        case 'dhl':
-          window.open('https://ecommerceportal.dhl.com/track/?ref=' + encodeURIComponent(num), '_blank');
-          break;
-        case 'scg':
-          // Copy DO number then open SCG website — user pastes with Ctrl+V
-          var tempInput = document.createElement('textarea');
-          tempInput.value = num;
-          document.body.appendChild(tempInput);
-          tempInput.select();
-          document.execCommand('copy');
-          document.body.removeChild(tempInput);
-          showModal('SCG Tracking', '<div style="text-align:center;padding:25px 15px;">'
-            + '<p style="font-size:16px;">DO Number <strong style="color:#d32f2f;font-size:20px;">' + num + '</strong></p>'
-            + '<p style="font-size:15px;color:#4caf50;margin:10px 0;">&#10004; DO number copied!</p>'
-            + '<p style="color:#666;font-size:13px;">Please paste in the search box (<b>Ctrl+V</b>) then click <b>SEARCH</b></p>'
-            + '</div>');
-          window.open('https://www.scgjwd.com/tracking', '_blank');
-          break;
-        case 'skyfrog':
-          window.open('https://track.skyfrog.net/h1IZM?TrackNo=' + encodeURIComponent(num), '_blank');
-          break;
-        case 'porlor':
-          openPorlorTracking(num);
-          break;
+    function showFieldError(msg) {
+      const el = document.getElementById('tracking-error');
+      const input = document.getElementById('tracking-number');
+      if (msg) {
+        el.textContent = msg;
+        el.style.display = 'block';
+        input.classList.add('input-error');
+      } else {
+        el.style.display = 'none';
+        input.classList.remove('input-error');
       }
     }
 
-    // ===== Porlor — fetch via GAS API, display in modal =====
-    function openPorlorTracking(num) {
-      showLoading('Porlor Tracking', num);
+    // Clear error on typing
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('tracking-number').addEventListener('input', () => showFieldError(''));
+    });
 
-      var controller = new AbortController();
-      var timer = setTimeout(function () {
+    // ===== Modal Helpers =====
+    function showModal(title, html) {
+      document.getElementById('modal-title').textContent = title;
+      if (typeof DOMPurify !== 'undefined') {
+        document.getElementById('result-content').innerHTML = DOMPurify.sanitize(html, {
+          ADD_TAGS: ['style'],
+          ADD_ATTR: ['target'],
+          ALLOW_DATA_ATTR: false
+        });
+      } else {
+        document.getElementById('result-content').innerHTML = html;
+      }
+      const modal = document.getElementById('result-modal');
+      modal.style.display = 'block';
+      const closeBtn = modal.querySelector('.modal-close');
+      if (closeBtn) closeBtn.focus();
+    }
+
+    function showLoading(title, num) {
+      const safeNum = escapeHtml(num);
+      showModal(title, '<div class="loading-spinner"><p>กำลังค้นหาหมายเลข <strong>'
+        + safeNum + '</strong></p><p style="color:#888;font-size:13px;">กรุณารอสักครู่...</p></div>');
+    }
+
+    function showErrorModal(title, msg, fallbackUrl) {
+      const safeMsg = escapeHtml(msg);
+      showModal(title, '<div style="text-align:center;padding:30px 0;">'
+        + '<p style="color:#d32f2f;font-size:16px;">' + safeMsg + '</p>'
+        + (fallbackUrl ? '<p style="margin-top:15px;"><a href="' + fallbackUrl
+          + '" target="_blank" style="color:#d32f2f;">ลองค้นหาที่เว็บโดยตรง</a></p>' : '')
+        + '</div>');
+    }
+
+    function closeModal() {
+      document.getElementById('result-modal').style.display = 'none';
+      document.getElementById('result-content').innerHTML = '';
+      document.getElementById('btn-track').focus();
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.appendChild(document.createTextNode(str));
+      return div.innerHTML;
+    }
+
+    // ===== Toast =====
+    function showToast(msg, duration = 3000) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), duration);
+    }
+
+    // ===== Keyboard Shortcuts =====
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const modal = document.getElementById('result-modal');
+        if (modal.style.display === 'block') {
+          closeModal();
+          e.preventDefault();
+        }
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const formInputs = document.querySelectorAll('#tracking-form select, #tracking-form input');
+      formInputs.forEach(el => {
+        el.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            trackPackage();
+          }
+        });
+      });
+    });
+
+    // ===== Clipboard (Modern API with fallback) =====
+    async function copyToClipboard(text) {
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+          return true;
+        }
+      } catch (_) { /* fallback below */ }
+
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        return ok;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    // ===== กดปุ่ม "ติดตามทันที" =====
+    function trackPackage() {
+      const carrier = document.getElementById('carrier').value;
+      const num = document.getElementById('tracking-number').value.trim();
+
+      if (!carrier) { showToast('⚠️ กรุณาเลือกบริษัทขนส่ง'); return; }
+      const err = validateInput(num);
+      if (err) { showFieldError(err); return; }
+
+      showFieldError('');
+      openTracking(carrier, num);
+    }
+
+    // ===== คลิกลิงก์ด่วนด้านล่าง =====
+    function openCarrierLink(carrier) {
+      const num = document.getElementById('tracking-number').value.trim();
+      if (num) {
+        const err = validateInput(num);
+        if (err) { showFieldError(err); return false; }
+        showFieldError('');
+        openTracking(carrier, num);
+        return false;
+      }
+      return true;
+    }
+
+    // ===== เปิด tracking แต่ละขนส่ง =====
+    function openTracking(carrier, num) {
+      const config = CARRIERS[carrier];
+      if (!config) return;
+
+      switch (config.mode) {
+
+        case 'redirect': {
+          const url = config.trackUrl.replace('{num}', encodeURIComponent(num));
+          showToast('🔗 กำลังเปิด ' + config.name + '...');
+          window.open(url, '_blank');
+          break;
+        }
+
+        case 'proxy': {
+          if (carrier === 'porlor') openPorlorTracking(num);
+          else if (carrier === 'scg') openScgTracking(num);
+          break;
+        }
+      }
+    }
+
+    // ===== Generic GAS API proxy via fetch =====
+    function openGasProxy(carrierKey, actionName, num) {
+      const config = CARRIERS[carrierKey];
+      const title = config.name + ' Tracking';
+      showLoading(title, num);
+
+      const controller = new AbortController();
+      const timer = setTimeout(() => {
         controller.abort();
-        showErrorModal('Porlor Tracking', 'Connection timed out — please try again', 'https://rfe.co.th/hc_rfeweb/trackingweb');
+        showErrorModal(title, 'หมดเวลาเชื่อมต่อ ' + config.name + ' — กรุณาลองใหม่',
+          config.siteUrl);
       }, 45000);
 
-      fetch(GAS_API_URL + '?action=porlor&tracking=' + encodeURIComponent(num), {
+      fetch(GAS_API_URL + '?action=' + actionName + '&tracking=' + encodeURIComponent(num), {
         redirect: 'follow',
         signal: controller.signal
       })
-        .then(function (r) { return r.text(); })
-        .then(function (text) {
+        .then(r => r.text())
+        .then(text => {
           clearTimeout(timer);
           try {
-            var result = JSON.parse(text);
+            const result = JSON.parse(text);
             if (result && result.success) {
-              showModal('Porlor Tracking', result.html);
+              showModal(title, result.html);
             } else {
-              showErrorModal('Porlor Tracking', (result && result.error) || 'Unknown error', 'https://rfe.co.th/hc_rfeweb/trackingweb');
+              showErrorModal(title,
+                (result && result.error) || 'Unknown error',
+                config.siteUrl);
             }
           } catch (e) {
-            showErrorModal('Porlor Tracking', 'Invalid response from server', 'https://rfe.co.th/hc_rfeweb/trackingweb');
+            showErrorModal(title, 'Invalid response from server',
+              config.siteUrl);
           }
         })
-        .catch(function (err) {
+        .catch(err => {
           clearTimeout(timer);
-          if (err.name === 'AbortError') return; // timeout already handled
-          showErrorModal('Porlor Tracking', 'Connection failed: ' + err.message, 'https://rfe.co.th/hc_rfeweb/trackingweb');
+          if (err.name === 'AbortError') return;
+          showErrorModal(title, 'Connection failed: ' + err.message,
+            config.siteUrl);
         });
+    }
+
+    // ===== Porlor — ค้นหาผ่าน server-side แสดงผลใน modal =====
+    function openPorlorTracking(num) {
+      openGasProxy('porlor', 'porlor', num);
+    }
+
+    // ===== SCG — ค้นหาผ่าน server-side แสดงผลใน modal =====
+    function openScgTracking(num) {
+      openGasProxy('scg', 'scg', num);
     }
   </script>
 
